@@ -14,6 +14,28 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const core = b.createModule(.{
+        .root_source_file = b.path("src/core/root.zig"),
+        .optimize = optimize,
+        .target = target,
+    });
+
+    exe.root_module.addImport("core", core);
+
+    // raylib
+    {
+        const raylib_dep = b.dependency("raylib_zig", .{
+            .target = target,
+            .optimize = optimize,
+        });
+        const raylib = raylib_dep.module("raylib");
+        const raygui = raylib_dep.module("raygui");
+        const raylib_artifact = raylib_dep.artifact("raylib");
+        core.linkLibrary(raylib_artifact);
+        core.addImport("raylib", raylib);
+        core.addImport("raygui", raygui);
+    }
+
     b.installArtifact(exe);
 
     // run command
@@ -41,9 +63,15 @@ pub fn build(b: *std.Build) void {
             .root_module = exe.root_module,
             .filters = test_filters,
         });
+        const core_unit_tests = b.addTest(.{
+            .root_module = core,
+            .filters = test_filters,
+        });
         const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+        const run_core_unit_tests = b.addRunArtifact(core_unit_tests);
         const test_step = b.step("test", "Run unit tests");
         test_step.dependOn(&run_exe_unit_tests.step);
+        test_step.dependOn(&run_core_unit_tests.step);
     }
 
     // Lsp stuff
@@ -52,7 +80,13 @@ pub fn build(b: *std.Build) void {
             .name = "game-of-life",
             .root_module = exe.root_module,
         });
+        const core_check = b.addExecutable(.{
+            .name = "core",
+            .root_module = core,
+        });
+
         const check = b.step("check", "Check if it compiles");
         check.dependOn(&exe_check.step);
+        check.dependOn(&core_check.step);
     }
 }
