@@ -7,17 +7,14 @@ const Rectangle = raylib.Rectangle;
 const Color = raylib.Color;
 
 const Cell = @import("Cell.zig");
+const colors = @import("colors.zig");
 const core = @import("root.zig");
 const State = @import("State.zig");
+const util = @import("util.zig");
+const icons = @import("icons.zig");
 
 /// Grid is 30x30 cells
 pub const GRID_SIZE: u32 = 30;
-
-pub const COLORS = .{
-    .fg = Color.gray,
-    .bg = Color.black,
-    .accent = Color.yellow,
-};
 
 const Sections = struct {
     const Self = @This();
@@ -33,6 +30,7 @@ const Sections = struct {
     /// Width of the window
     width: usize = 600,
 };
+
 /// Sections of the UI broken up into a column of rectangles
 const sections: Sections = blk: {
     var s: Sections = .{};
@@ -68,48 +66,37 @@ const sections: Sections = blk: {
     break :blk s;
 };
 
+const TITLE_TEXT: [:0]const u8 = "Conway's Game of Life";
+
 pub fn init() void {
     const pad = @divExact(sections.window_pad, 2);
+    const width = sections.width;
+    const height = sections.toolbar.y + sections.toolbar.height + pad;
 
-    raylib.initWindow(
-        sections.width,
-        sections.toolbar.y + sections.toolbar.height + pad,
-        "Conway's Game of Life",
-    );
-
-    raylib.setTargetFPS(60);
+    raylib.setTargetFPS(120);
+    raylib.initWindow(width, height, TITLE_TEXT);
 }
 
-pub fn rect_contains(rect: Rectangle, other: Vector2) bool {
-    return other.x >= rect.x and
-        other.y >= rect.y and
-        other.x < rect.x + rect.width and
-        other.y < rect.y + rect.height;
+fn render_title(rect: Rectangle) void {
+    const font_size: f32 = 36;
+    const text_width_i32 = raylib.measureText(TITLE_TEXT, font_size);
+    const text_width: f32 = @floatFromInt(text_width_i32);
+    const rect_center = util.rect.get_center(rect);
+    const text_x = rect_center.x - (text_width / 2);
+    const text_y = rect_center.y - (font_size / 2);
+
+    raylib.drawText(
+        TITLE_TEXT,
+        @intFromFloat(text_x),
+        @intFromFloat(text_y),
+        font_size,
+        .white,
+    );
 }
 
 fn render_grid(state: *State, rect: Rectangle) void {
-    raylib.drawLineV(
-        .{
-            .x = rect.x,
-            .y = rect.y,
-        },
-        .{
-            .x = rect.x + rect.width,
-            .y = rect.y,
-        },
-        COLORS.fg,
-    );
-    raylib.drawLineV(
-        .{
-            .x = rect.x,
-            .y = rect.y,
-        },
-        .{
-            .x = rect.x,
-            .y = rect.y + rect.height,
-        },
-        COLORS.fg,
-    );
+    util.rect.as_horizontal_line(rect, colors.fg);
+    util.rect.as_vertical_line(rect, colors.fg);
     const mouse = raylib.getMousePosition();
 
     const cell_width = rect.width / GRID_SIZE;
@@ -129,24 +116,37 @@ fn render_grid(state: *State, rect: Rectangle) void {
                 .height = cell_height,
             };
             const cell_is_alive = state.game.current[row][col];
-            const cell_is_hovered = rect_contains(cell_rect, mouse);
+            const cell_is_hovered = util.rect.contains(cell_rect, mouse);
             Cell.draw(cell_rect, cell_is_alive, cell_is_hovered);
             Cell.handle_toggle(state, row, col, cell_is_hovered);
         }
     }
 }
 
-pub fn render_toolbar(state: *State) void {
-    _ = state;
+pub fn render_toolbar(state: *State, rect: Rectangle) void {
+    raylib.drawRectangleRec(rect, .dark_gray);
+
+    const scale: i32 = 5;
+    const offset: f32 = (icons.SIZE * scale) / 2;
+    const offset_vec: Vector2 = .{ .x = -offset, .y = -offset };
+    const icon_pos: Vector2 = util.rect.get_center(rect).add(offset_vec);
+    if (icons.button(
+        icons.next_frame,
+        icon_pos,
+        .{ .scale = scale, .rounded = true },
+    )) {
+        state.game.next();
+    }
 }
 
 pub fn render(state: *State) void {
     raylib.beginDrawing();
     defer raylib.endDrawing();
-
     raylib.clearBackground(.black);
 
+    render_title(sections.title);
     render_grid(state, sections.grid);
+    render_toolbar(state, sections.toolbar);
 }
 
 pub fn should_exit() bool {

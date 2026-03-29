@@ -1,10 +1,7 @@
 const std = @import("std");
 
-pub const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 pub const State = @import("State.zig");
 pub const UI = @import("UI.zig");
-
-pub const Point = struct { x: usize, y: usize };
 
 pub export fn game_window_init() void {
     UI.init();

@@ -2,12 +2,13 @@ const raylib = @import("raylib");
 const Vector2 = raylib.Vector2;
 const Color = raylib.Color;
 const Rectangle = raylib.Rectangle;
+const colors = @import("colors.zig");
 
 const State = @import("State.zig");
 const UI = @import("UI.zig");
 
 pub fn draw(rect: Rectangle, cell_is_alive: bool, cell_is_hovered: bool) void {
-    const color: Color = if (cell_is_hovered) UI.COLORS.accent else UI.COLORS.fg;
+    const color: Color = if (cell_is_hovered) colors.accent else colors.fg;
     if (cell_is_alive) {
         raylib.drawRectangleRec(rect, color);
     } else if (cell_is_hovered) {
@@ -17,28 +18,30 @@ pub fn draw(rect: Rectangle, cell_is_alive: bool, cell_is_hovered: bool) void {
     const x: f32 = rect.x;
     const y: f32 = rect.y;
 
-    raylib.drawLineV(
-        .{
+    {
+        const from: Vector2 = .{
             .x = x + rect.width,
             .y = y,
-        },
-        .{
+        };
+        const to: Vector2 = .{
             .x = x + rect.width,
             .y = y + rect.height,
-        },
-        UI.COLORS.fg,
-    );
-    raylib.drawLineV(
-        .{
+        };
+
+        raylib.drawLineV(from, to, colors.fg);
+    }
+
+    {
+        const from: Vector2 = .{
             .x = x,
             .y = y + rect.height,
-        },
-        .{
+        };
+        const to: Vector2 = .{
             .x = x + rect.width,
             .y = y + rect.height,
-        },
-        UI.COLORS.fg,
-    );
+        };
+        raylib.drawLineV(from, to, colors.fg);
+    }
 }
 
 pub fn handle_toggle(state: *State, row: usize, col: usize, cell_is_hovered: bool) void {

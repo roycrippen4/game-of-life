@@ -1,6 +1,8 @@
 const std = @import("std");
 const testing = std.testing;
 
+const raylib = @import("raylib");
+
 pub fn RingBuffer(comptime T: type, comptime N: usize) type {
     return struct {
         const Self = @This();
@@ -74,6 +76,67 @@ pub fn RingBuffer(comptime T: type, comptime N: usize) type {
         }
     };
 }
+
+pub const rect = struct {
+    pub fn contains(r: raylib.Rectangle, other: raylib.Vector2) bool {
+        return other.x >= r.x and
+            other.y >= r.y and
+            other.x < r.x + r.width and
+            other.y < r.y + r.height;
+    }
+
+    pub fn as_horizontal_line(r: raylib.Rectangle, color: raylib.Color) void {
+        const from: raylib.Vector2 = .{
+            .x = r.x,
+            .y = r.y,
+        };
+        const to: raylib.Vector2 = .{
+            .x = r.x + r.width,
+            .y = r.y,
+        };
+        raylib.drawLineV(from, to, color);
+    }
+
+    pub fn as_vertical_line(r: raylib.Rectangle, color: raylib.Color) void {
+        const from: raylib.Vector2 = .{
+            .x = r.x,
+            .y = r.y,
+        };
+        const to: raylib.Vector2 = .{
+            .x = r.x,
+            .y = r.y + r.height,
+        };
+        raylib.drawLineV(from, to, color);
+    }
+
+    /// computes the center of the rectangle
+    pub fn get_center(r: raylib.Rectangle) raylib.Vector2 {
+        return .{
+            .x = r.x + (r.width / 2),
+            .y = r.y + (r.height / 2),
+        };
+    }
+    test "util.rect get_center" {
+        const r: raylib.Rectangle = .{
+            .x = 15,
+            .y = 20,
+            .width = 10,
+            .height = 5,
+        };
+
+        const expected: raylib.Vector2 = .{ .x = 20, .y = 22.5 };
+        const result = get_center(r);
+        try testing.expectEqual(expected.x, result.x);
+        try testing.expectEqual(expected.y, result.y);
+    }
+
+    pub fn get_origin_vector(r: raylib.Rectangle) raylib.Vector2 {
+        return .{
+            .x = r.x,
+            .y = r.y,
+        };
+    }
+};
 
 test "ring_buffer push" {
     var ring_buffer = RingBuffer(u32, 3){};

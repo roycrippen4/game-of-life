@@ -1,7 +1,7 @@
 ## Commands
 
 - `zig build` — standard build
-- `zig build -Dhot-reload` — build with hot reloading via dynamic library
+- `zig build -Dhot` — build with hot reloading via dynamic library
 - `zig build --release=fast` — release build, no hot reload
 
 ## Architecture

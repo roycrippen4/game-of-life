@@ -1,9 +1,11 @@
 //! The game of life "engine".
 const std = @import("std");
 
-const core = @import("root.zig");
-const Point = core.Point;
-const SIZE = core.UI.GRID_SIZE;
+const SIZE = @import("UI.zig").GRID_SIZE;
+const util = @import("util.zig");
+const RingBuffer = util.RingBuffer;
+
+const Point = struct { x: usize, y: usize };
 
 /// Simulation related state
 const Sim = struct {
@@ -15,16 +17,15 @@ const Sim = struct {
 };
 
 const GameState = [SIZE][SIZE]bool;
-const GameStateHistory = @import("ring_buffer.zig").RingBuffer(GameState, 100);
 
 /// Game of life cell-state
 const Game = struct {
     const Self = @This();
-    const default: [SIZE][SIZE]bool = @splat(@splat(false));
+    const default: GameState = @splat(@splat(false));
 
-    current: [SIZE][SIZE]bool = default,
-    temp: [SIZE][SIZE]bool = default,
-    history: GameStateHistory = .{},
+    current: GameState = default,
+    temp: GameState = default,
+    history: RingBuffer(GameState, 100) = .{},
 
     fn is_alive(self: Self, x: isize, y: isize) bool {
         if (x < 0 or y < 0 or x >= SIZE or y >= SIZE) return false;

@@ -4,17 +4,17 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const hot_reload_option = b.option(bool, "hot", "Enable hot reloading via dynamic library") orelse false;
+    const hot_option = b.option(bool, "hot", "Enable hot reloading via dynamic library") orelse false;
     const is_release = optimize != .Debug;
-    const hot_reload = hot_reload_option and !is_release;
+    const hot = hot_option and !is_release;
 
     const build_options = b.addOptions();
-    build_options.addOption(bool, "hot_reload", hot_reload);
+    build_options.addOption(bool, "hot_reload", hot);
 
     const raylib_linkage: std.builtin.LinkMode = if (is_release) .static else .dynamic;
 
     const exe = b.addExecutable(.{
-        .name = "game-of-life",
+        .name = "gol",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = target,
@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) void {
     core.addImport("raylib", raylib);
     core.addImport("raygui", raygui);
 
-    if (hot_reload) {
+    if (hot) {
         // Both exe and shared lib link the dynamic raylib so they share
         // raylib's global state (window, GL context) across reloads.
         exe.linkLibrary(raylib_artifact);
@@ -103,7 +103,7 @@ pub fn build(b: *std.Build) void {
     // Lsp stuff
     {
         const exe_check = b.addExecutable(.{
-            .name = "game-of-life",
+            .name = "gol",
             .root_module = exe.root_module,
         });
         const core_check = b.addExecutable(.{
