@@ -3,7 +3,7 @@ const std = @import("std");
 
 const core = @import("root.zig");
 const Point = core.Point;
-const SIZE = core.GRID_SIZE;
+const SIZE = core.UI.GRID_SIZE;
 
 /// Simulation related state
 const Sim = struct {
@@ -14,6 +14,9 @@ const Sim = struct {
     running: bool = false,
 };
 
+const GameState = [SIZE][SIZE]bool;
+const GameStateHistory = @import("ring_buffer.zig").RingBuffer(GameState, 100);
+
 /// Game of life cell-state
 const Game = struct {
     const Self = @This();
@@ -21,6 +24,7 @@ const Game = struct {
 
     current: [SIZE][SIZE]bool = default,
     temp: [SIZE][SIZE]bool = default,
+    history: GameStateHistory = .{},
 
     fn is_alive(self: Self, x: isize, y: isize) bool {
         if (x < 0 or y < 0 or x >= SIZE or y >= SIZE) return false;
@@ -62,6 +66,7 @@ const Game = struct {
     }
 
     pub fn next(self: *Self) void {
+        self.history.push(self.current);
         self.temp = default;
 
         for (1..SIZE - 1) |x| for (1..SIZE - 1) |y| {
@@ -74,6 +79,12 @@ const Game = struct {
         };
 
         self.current = self.temp;
+    }
+
+    pub fn prev(self: *Self) void {
+        if (self.history.pop()) |previous| {
+            self.current = previous;
+        }
     }
 
     pub fn next_n(self: *Self, n: usize) void {
