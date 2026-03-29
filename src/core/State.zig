@@ -1,9 +1,11 @@
 //! The game of life "engine".
 const std = @import("std");
 
-const core = @import("root.zig");
-const Point = core.Point;
-const SIZE = core.GRID_SIZE;
+const SIZE = @import("UI.zig").GRID_SIZE;
+const util = @import("util.zig");
+const RingBuffer = util.RingBuffer;
+
+const Point = struct { x: usize, y: usize };
 
 /// Simulation related state
 const Sim = struct {
@@ -14,13 +16,16 @@ const Sim = struct {
     running: bool = false,
 };
 
+const GameState = [SIZE][SIZE]bool;
+
 /// Game of life cell-state
 const Game = struct {
     const Self = @This();
-    const default: [SIZE][SIZE]bool = @splat(@splat(false));
+    const default: GameState = @splat(@splat(false));
 
-    current: [SIZE][SIZE]bool = default,
-    temp: [SIZE][SIZE]bool = default,
+    current: GameState = default,
+    temp: GameState = default,
+    history: RingBuffer(GameState, 100) = .{},
 
     fn is_alive(self: Self, x: isize, y: isize) bool {
         if (x < 0 or y < 0 or x >= SIZE or y >= SIZE) return false;
@@ -62,6 +67,7 @@ const Game = struct {
     }
 
     pub fn next(self: *Self) void {
+        self.history.push(self.current);
         self.temp = default;
 
         for (1..SIZE - 1) |x| for (1..SIZE - 1) |y| {
@@ -74,6 +80,12 @@ const Game = struct {
         };
 
         self.current = self.temp;
+    }
+
+    pub fn prev(self: *Self) void {
+        if (self.history.pop()) |previous| {
+            self.current = previous;
+        }
     }
 
     pub fn next_n(self: *Self, n: usize) void {
