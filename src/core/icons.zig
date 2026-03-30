@@ -48,17 +48,16 @@ const ButtonState = enum {
     }
 };
 
-const ButtonOpts = struct {
+pub const ButtonOpts = struct {
     border: bool = false,
     disable: bool = false,
     rounded: bool = true,
     drop_shadow: bool = true,
-    scale: f32,
 };
 
 /// Renders an icon to the screen.
 /// Returns the computed bounding box for the icon
-pub fn draw(icon: Icon, bb: Rectangle, state: ButtonState, opts: ButtonOpts) void {
+pub fn draw(icon: Icon, bb: Rectangle, pixel_scale: f32, state: ButtonState, opts: ButtonOpts) void {
     const fg, const bg = switch (state) {
         .hover => .{
             raylib.colorBrightness(colors.button.fg, 0.1),
@@ -118,10 +117,10 @@ pub fn draw(icon: Icon, bb: Rectangle, state: ButtonState, opts: ButtonOpts) voi
                 const x: f32 = @floatFromInt(k_usize % SIZE);
                 const y: f32 = @floatFromInt(i * 2 + k_usize / SIZE);
                 const pixel: Rectangle = .{
-                    .x = bb.x + x * opts.scale,
-                    .y = bb.y + y * opts.scale,
-                    .width = opts.scale,
-                    .height = opts.scale,
+                    .x = bb.x + x * pixel_scale,
+                    .y = bb.y + y * pixel_scale,
+                    .width = pixel_scale,
+                    .height = pixel_scale,
                 };
                 raylib.drawRectangleRec(pixel, fg);
             }
@@ -138,16 +137,12 @@ pub fn draw(icon: Icon, bb: Rectangle, state: ButtonState, opts: ButtonOpts) voi
 }
 
 /// Renders an icon as a button. Returns true if clicked.
-pub fn button(
-    icon: Icon,
-    pos: raylib.Vector2,
-    opts: ButtonOpts,
-) bool {
+pub fn button(icon: Icon, pos: raylib.Vector2, pixel_scale: f32, opts: ButtonOpts) bool {
     const bb: Rectangle = .{
         .x = pos.x,
         .y = pos.y,
-        .width = SIZE * opts.scale,
-        .height = SIZE * opts.scale,
+        .width = SIZE * pixel_scale,
+        .height = SIZE * pixel_scale,
     };
 
     const mouse = raylib.getMousePosition();
@@ -163,7 +158,7 @@ pub fn button(
     else
         .default;
 
-    draw(icon, bb, state, opts);
+    draw(icon, bb, pixel_scale, state, opts);
 
     return hovered and !opts.disable and raylib.isMouseButtonPressed(.left);
 }

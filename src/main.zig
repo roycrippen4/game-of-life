@@ -30,25 +30,14 @@ pub fn main() !void {
 }
 
 test "main foo" {
-    const c = @import("core");
-    var st: c.State = .{};
+    var state: core.State = .{};
 
-    std.debug.print("Generation 0\n", .{});
-    const mid: usize = @divFloor(c.GRID_SIZE, 2);
-    st.game.set_group(&.{
-        .{ .x = mid - 4, .y = mid },
-        .{ .x = mid - 3, .y = mid },
-        .{ .x = mid - 3, .y = mid + 1 },
-        .{ .x = mid + 1, .y = mid + 1 },
-        .{ .x = mid + 2, .y = mid + 1 },
-        .{ .x = mid + 3, .y = mid + 1 },
-        .{ .x = mid + 2, .y = mid - 1 },
-    });
-    st.game.show();
+    state.game.set_group(core.samples.default);
+    state.game.show();
     std.debug.print("\n", .{});
 
-    st.game.next_n(107);
-    st.game.show();
+    state.game.next_n(107);
+    state.game.show();
 }
 
 test {

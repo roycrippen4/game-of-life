@@ -6,12 +6,12 @@ const Vector2 = raylib.Vector2;
 const Rectangle = raylib.Rectangle;
 const Color = raylib.Color;
 
-const Cell = @import("Cell.zig");
+const cell = @import("cell.zig");
 const colors = @import("colors.zig");
 const core = @import("root.zig");
+const icons = @import("icons.zig");
 const State = @import("State.zig");
 const util = @import("util.zig");
-const icons = @import("icons.zig");
 
 /// Grid is 30x30 cells
 pub const GRID_SIZE: u32 = 30;
@@ -37,7 +37,7 @@ const sections: Sections = blk: {
 
     const title_height: usize = 36;
     const grid_height: usize = 600;
-    const toolbar_height: usize = 100;
+    const toolbar_height: usize = 90;
 
     const pad = @divExact(s.window_pad, 2);
     const width: usize = s.width - s.window_pad;
@@ -95,8 +95,8 @@ fn render_title(rect: Rectangle) void {
 }
 
 fn render_grid(state: *State, rect: Rectangle) void {
-    util.rect.as_horizontal_line(rect, colors.fg);
-    util.rect.as_vertical_line(rect, colors.fg);
+    util.rect.as_horizontal_line(rect, colors.main.fg);
+    util.rect.as_vertical_line(rect, colors.main.fg);
     const mouse = raylib.getMousePosition();
 
     const cell_width = rect.width / GRID_SIZE;
@@ -117,8 +117,8 @@ fn render_grid(state: *State, rect: Rectangle) void {
             };
             const cell_is_alive = state.game.current[row][col];
             const cell_is_hovered = util.rect.contains(cell_rect, mouse);
-            Cell.draw(cell_rect, cell_is_alive, cell_is_hovered);
-            Cell.handle_toggle(state, row, col, cell_is_hovered);
+            cell.draw(cell_rect, cell_is_alive, cell_is_hovered);
+            cell.handle_toggle(state, row, col, cell_is_hovered);
         }
     }
 }
@@ -126,16 +126,40 @@ fn render_grid(state: *State, rect: Rectangle) void {
 pub fn render_toolbar(state: *State, rect: Rectangle) void {
     raylib.drawRectangleRec(rect, .dark_gray);
 
-    const scale: i32 = 5;
-    const offset: f32 = (icons.SIZE * scale) / 2;
-    const offset_vec: Vector2 = .{ .x = -offset, .y = -offset };
-    const icon_pos: Vector2 = util.rect.get_center(rect).add(offset_vec);
-    if (icons.button(
-        icons.next_frame,
-        icon_pos,
-        .{ .scale = scale, .rounded = true },
-    )) {
-        state.game.next();
+    // The icons are pixel art rendered using a bunch of rectangles.
+    // This value scales the size of a "pixel" in the icon,
+    // which is really just the size of the rect
+    const pixel_scale = 5;
+
+    // gap between each button
+    const button_gap: f32 = 5;
+    const button_width: f32 = icons.SIZE * pixel_scale;
+    const button_y: f32 = rect.y + (rect.height / 2) - (button_width) / 2;
+
+    var buttons_rendered: f32 = 0;
+    const next_button_x = struct {
+        inline fn next_button_x(rect_x: f32, gap: f32, render_count: *f32) f32 {
+            render_count.* += 1;
+            const gap_width: f32 = render_count.* * gap;
+            const button_width_sum: f32 = ((render_count.* - 1) * button_width);
+            return rect_x + gap_width + button_width_sum;
+        }
+    }.next_button_x;
+
+    // Next state
+    {
+        const button_x: f32 = next_button_x(rect.x, button_gap, &buttons_rendered);
+        const button_pos: Vector2 = .{ .x = button_x, .y = button_y };
+        const click_occurred = icons.button(icons.prev_frame, button_pos, pixel_scale, .{});
+        if (click_occurred) state.game.prev();
+    }
+
+    // Previous state
+    {
+        const button_x: f32 = next_button_x(rect.x, button_gap, &buttons_rendered);
+        const pos: Vector2 = .{ .x = button_x, .y = button_y };
+        const click_occurred = icons.button(icons.next_frame, pos, pixel_scale, .{});
+        if (click_occurred) state.game.next();
     }
 }
 

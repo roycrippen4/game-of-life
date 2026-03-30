@@ -1,38 +1,36 @@
 const std = @import("std");
 
 pub const State = @import("State.zig");
-pub const UI = @import("UI.zig");
+pub const ui = @import("ui.zig");
+const raylib = @import("raylib");
+
+pub const Points = []const raylib.Vector2;
+
+pub const samples = struct {
+    pub const default: Points = @import("samples/default.zon");
+};
 
 pub export fn game_window_init() void {
-    UI.init();
+    ui.init();
 }
 
 pub export fn game_window_deinit() void {
-    UI.exit();
+    ui.exit();
 }
 
 pub export fn game_init() *anyopaque {
     const state = std.heap.page_allocator.create(State) catch @panic("OOM");
     state.* = .{};
-    const mid: usize = @divFloor(UI.GRID_SIZE, 2);
-    state.game.set_group(&.{
-        .{ .x = mid - 4, .y = mid },
-        .{ .x = mid - 3, .y = mid },
-        .{ .x = mid - 3, .y = mid + 1 },
-        .{ .x = mid + 1, .y = mid + 1 },
-        .{ .x = mid + 2, .y = mid + 1 },
-        .{ .x = mid + 3, .y = mid + 1 },
-        .{ .x = mid + 2, .y = mid - 1 },
-    });
+    state.game.set_group(samples.default);
     return @ptrCast(state);
 }
 
 pub export fn game_update(state_opaque: *anyopaque) void {
     const state: *State = @ptrCast(@alignCast(state_opaque));
-    UI.render(state);
+    ui.render(state);
 }
 
 test {
-    _ = UI;
+    _ = ui;
     _ = State;
 }

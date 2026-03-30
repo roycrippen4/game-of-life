@@ -1,11 +1,10 @@
 //! The game of life "engine".
 const std = @import("std");
 
-const SIZE = @import("UI.zig").GRID_SIZE;
+const SIZE = @import("ui.zig").GRID_SIZE;
 const util = @import("util.zig");
 const RingBuffer = util.RingBuffer;
-
-const Point = struct { x: usize, y: usize };
+const Vector2 = @import("raylib").Vector2;
 
 /// Simulation related state
 const Sim = struct {
@@ -27,14 +26,14 @@ const Game = struct {
     temp: GameState = default,
     history: RingBuffer(GameState, 100) = .{},
 
-    fn is_alive(self: Self, x: isize, y: isize) bool {
+    fn is_alive(self: Self, x: i32, y: i32) bool {
         if (x < 0 or y < 0 or x >= SIZE or y >= SIZE) return false;
         return self.current[@intCast(y)][@intCast(x)];
     }
 
-    fn get_live_nbor_count(self: Self, point: Point) usize {
-        const x: isize = @intCast(point.x);
-        const y: isize = @intCast(point.y);
+    fn get_live_nbor_count(self: Self, vec: Vector2) usize {
+        const x: i32 = @intFromFloat(vec.x);
+        const y: i32 = @intFromFloat(vec.y);
 
         const nbors: [8]bool = .{
             self.is_alive(x - 1, y - 1),
@@ -54,11 +53,13 @@ const Game = struct {
         return count;
     }
 
-    pub fn set(self: *Self, point: Point) void {
-        self.current[point.y][point.x] = !self.current[point.y][point.x];
+    pub fn set(self: *Self, point: Vector2) void {
+        const x: usize = @intFromFloat(point.x);
+        const y: usize = @intFromFloat(point.y);
+        self.current[y][x] = !self.current[y][x];
     }
 
-    pub fn set_group(self: *Self, points: []const Point) void {
+    pub fn set_group(self: *Self, points: []const Vector2) void {
         for (points) |point| self.set(point);
     }
 
@@ -70,11 +71,13 @@ const Game = struct {
         self.history.push(self.current);
         self.temp = default;
 
-        for (1..SIZE - 1) |x| for (1..SIZE - 1) |y| {
+        for (1..SIZE - 1) |x_usize| for (1..SIZE - 1) |y_usize| {
+            const x: f32 = @floatFromInt(x_usize);
+            const y: f32 = @floatFromInt(y_usize);
             const nbor_count = self.get_live_nbor_count(.{ .x = x, .y = y });
-            const cell: bool = self.current[y][x];
+            const cell: bool = self.current[y_usize][x_usize];
 
-            self.temp[y][x] =
+            self.temp[y_usize][x_usize] =
                 (cell and (nbor_count == 2 or nbor_count == 3)) or
                 (!cell and nbor_count == 3);
         };
