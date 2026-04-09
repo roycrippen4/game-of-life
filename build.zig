@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
     const hot = hot_option and !is_release;
 
     const build_options = b.addOptions();
-    build_options.addOption(bool, "hot_reload", hot);
+    build_options.addOption(bool, "hot", hot);
 
     const raylib_linkage: std.builtin.LinkMode = if (is_release) .static else .dynamic;
 
@@ -44,7 +44,7 @@ pub fn build(b: *std.Build) void {
     if (hot) {
         // Both exe and shared lib link the dynamic raylib so they share
         // raylib's global state (window, GL context) across reloads.
-        exe.linkLibrary(raylib_artifact);
+        exe.root_module.linkLibrary(raylib_artifact);
         exe.root_module.addImport("raylib", raylib);
         exe.root_module.addImport("raygui", raygui);
 
@@ -53,7 +53,7 @@ pub fn build(b: *std.Build) void {
             .root_module = core,
             .linkage = .dynamic,
         });
-        core_lib.linkLibrary(raylib_artifact);
+        core_lib.root_module.linkLibrary(raylib_artifact);
         b.installArtifact(core_lib);
     } else {
         core.linkLibrary(raylib_artifact);

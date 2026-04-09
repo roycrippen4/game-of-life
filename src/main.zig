@@ -16,15 +16,15 @@ pub fn main() !void {
         try hr.init(&game_update);
     }
 
-    const window_init: WindowFn = if (hot_reload) hr.lookup(WindowFn, "game_window_init") else @ptrCast(&core.game_window_init);
-    const window_deinit: WindowFn = if (hot_reload) hr.lookup(WindowFn, "game_window_deinit") else @ptrCast(&core.game_window_deinit);
-    const state: *anyopaque = if (hot_reload) hr.game_init() else core.game_init();
+    const window_init: WindowFn = if (hot) hr.lookup(WindowFn, "game_window_init") else @ptrCast(&core.game_window_init);
+    const window_deinit: WindowFn = if (hot) hr.lookup(WindowFn, "game_window_deinit") else @ptrCast(&core.game_window_deinit);
+    const state: *anyopaque = if (hot) hr.game_init() else core.game_init();
 
     window_init();
     defer window_deinit();
 
     while (!raylib.windowShouldClose()) {
-        if (hot_reload) hr.try_reload(&game_update);
+        if (hot) hr.try_reload(init.io, &game_update);
         game_update(state);
     }
 }
