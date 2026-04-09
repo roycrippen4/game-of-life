@@ -25,6 +25,8 @@ pub const play: Icon = .{ 0x00000000, 0x00400000, 0x01c000c0, 0x07c003c0, 0x07c0
 pub const pause: Icon = .{ 0x00000000, 0x06600000, 0x06600660, 0x06600660, 0x06600660, 0x06600660, 0x00000660, 0x00000000 };
 pub const minus: Icon = .{ 0x00000000, 0x00000000, 0x00000000, 0x1ff80000, 0x00001ff8, 0x00000000, 0x00000000, 0x00000000 };
 pub const plus: Icon = .{ 0x00000000, 0x01800000, 0x01800180, 0x1ff80180, 0x01801ff8, 0x01800180, 0x00000180, 0x00000000 };
+pub const file_save: Icon = .{ 0x3ffe0000, 0x44226422, 0x400247e2, 0x5ffa4002, 0x57ea500a, 0x500a500a, 0x40025ffa, 0x00007ffe };
+pub const file_open: Icon = .{ 0x3ff00000, 0x201c2010, 0x20042004, 0x21042004, 0x24442284, 0x21042104, 0x20042104, 0x00003ffc };
 
 const ButtonState = enum {
     default,
@@ -145,8 +147,7 @@ pub fn button(icon: Icon, pos: raylib.Vector2, pixel_scale: f32, opts: ButtonOpt
         .height = SIZE * pixel_scale,
     };
 
-    const mouse = raylib.getMousePosition();
-    const hovered = util.rect.contains(bb, mouse);
+    const hovered = util.rect.contains_mouse(bb);
 
     const state: ButtonState = if (opts.disable)
         .disabled
