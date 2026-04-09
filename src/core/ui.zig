@@ -77,27 +77,9 @@ pub fn init() void {
     raylib.initWindow(width, height, TITLE_TEXT);
 }
 
-fn render_title(rect: Rectangle) void {
-    const font_size: f32 = 36;
-    const text_width_i32 = raylib.measureText(TITLE_TEXT, font_size);
-    const text_width: f32 = @floatFromInt(text_width_i32);
-    const rect_center = util.rect.get_center(rect);
-    const text_x = rect_center.x - (text_width / 2);
-    const text_y = rect_center.y - (font_size / 2);
-
-    raylib.drawText(
-        TITLE_TEXT,
-        @intFromFloat(text_x),
-        @intFromFloat(text_y),
-        font_size,
-        .white,
-    );
-}
-
 fn render_grid(state: *State, rect: Rectangle) void {
     util.rect.as_horizontal_line(rect, colors.main.fg);
     util.rect.as_vertical_line(rect, colors.main.fg);
-    const mouse = raylib.getMousePosition();
 
     const cell_width = rect.width / GRID_SIZE;
     const cell_height = rect.height / GRID_SIZE;
@@ -116,7 +98,7 @@ fn render_grid(state: *State, rect: Rectangle) void {
                 .height = cell_height,
             };
             const cell_is_alive = state.game.current[row][col];
-            const cell_is_hovered = util.rect.contains(cell_rect, mouse);
+            const cell_is_hovered = util.rect.contains_mouse(cell_rect);
             cell.draw(cell_rect, cell_is_alive, cell_is_hovered);
             cell.handle_toggle(state, row, col, cell_is_hovered);
         }
@@ -168,7 +150,7 @@ pub fn render(state: *State) void {
     defer raylib.endDrawing();
     raylib.clearBackground(.black);
 
-    render_title(sections.title);
+    util.rect.draw_text(TITLE_TEXT, sections.title, .white);
     render_grid(state, sections.grid);
     render_toolbar(state, sections.toolbar);
 }

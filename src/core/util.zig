@@ -78,11 +78,9 @@ pub fn RingBuffer(comptime T: type, comptime N: usize) type {
 }
 
 pub const rect = struct {
-    pub fn contains(r: raylib.Rectangle, other: raylib.Vector2) bool {
-        return other.x >= r.x and
-            other.y >= r.y and
-            other.x < r.x + r.width and
-            other.y < r.y + r.height;
+    pub fn contains_mouse(r: raylib.Rectangle) bool {
+        const mouse_position = raylib.getMousePosition();
+        return raylib.checkCollisionPointRec(mouse_position, r);
     }
 
     pub fn as_horizontal_line(r: raylib.Rectangle, color: raylib.Color) void {
@@ -107,6 +105,30 @@ pub const rect = struct {
             .y = r.y + r.height,
         };
         raylib.drawLineV(from, to, color);
+    }
+
+    pub fn get_font_size(text: [:0]const u8, r: raylib.Rectangle) f32 {
+        const font: raylib.Font = raylib.getFontDefault() catch unreachable;
+        const base_font_size: f32 = 20;
+        const spacing: f32 = 1;
+        const text_size: raylib.Vector2 = raylib.measureTextEx(font, text, base_font_size, spacing);
+        const scale_x: f32 = r.width / text_size.x;
+        const scale_y: f32 = r.height / text_size.y;
+        const scale: f32 = @min(scale_x, scale_y);
+        return (base_font_size * scale) * 0.93;
+    }
+
+    pub fn draw_text(text: [:0]const u8, r: raylib.Rectangle, color: raylib.Color) void {
+        const font: raylib.Font = raylib.getFontDefault() catch unreachable;
+        const font_size: f32 = get_font_size(text, r);
+        const spacing: f32 = 1;
+        const text_size: raylib.Vector2 = raylib.measureTextEx(font, text, font_size, spacing);
+        const text_position: raylib.Vector2 = .{
+            .x = r.x + (r.width - text_size.x) / 2,
+            .y = r.y + (r.height - text_size.y) / 2,
+        };
+
+        raylib.drawTextEx(font, text, text_position, font_size, spacing, color);
     }
 
     /// computes the center of the rectangle
