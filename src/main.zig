@@ -1,23 +1,21 @@
 const std = @import("std");
 
 const core = @import("core");
-const kf = @import("known-folders");
-const nfd = @import("nfd");
+const ui = core.ui;
 const raylib = @import("raylib");
 
 pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
-    core.patterns.init(init.io, arena, init.environ_map);
+    const io = init.io;
+    const env = init.environ_map;
 
-    core.ui.init();
-    defer core.ui.exit();
-
-    var state: core.State = .{};
-    state.game.set_group(core.patterns.default.data);
+    var state = core.init(io, arena, env);
 
     while (!raylib.windowShouldClose()) {
-        try core.ui.render(init.io, arena, &state);
+        try ui.render(io, arena, &state);
     }
+
+    ui.exit();
 }
 
 test {
