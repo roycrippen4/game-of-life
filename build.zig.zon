@@ -8,6 +8,14 @@
             .url = "git+https://github.com/raylib-zig/raylib-zig.git#e7fe21a041d811116c24d5e6e64b5602988ecb43",
             .hash = "raylib_zig-5.6.0-dev-KE8REIRdBQCPwyTnASiqrgDiovsd7RngNDERrUk-kOAA",
         },
+        .nfd = .{
+            .url = "git+https://github.com/fabioarnold/nfd-zig.git#031b6b08c28b4c209fde1d7cfc2387aa956febb2",
+            .hash = "nfd-0.1.0-y82kbsSLBgBgSEauGFsHxH7RmcL4AEOqZEqOvA8-NEFq",
+        },
+        .known_folders = .{
+            .url = "git+https://github.com/ziglibs/known-folders.git#175f5596b3d2ee3c658282bb07885580895a0e73",
+            .hash = "known_folders-0.0.0-Fy-PJk7KAAC41mQXzmFyGa0Q7tvmQjatENkREa6Gc4zu",
+        },
     },
     .paths = .{
         "build.zig",

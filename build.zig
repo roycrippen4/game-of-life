@@ -4,15 +4,6 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const hot_option = b.option(bool, "hot", "Enable hot reloading via dynamic library") orelse false;
-    const is_release = optimize != .Debug;
-    const hot = hot_option and !is_release;
-
-    const build_options = b.addOptions();
-    build_options.addOption(bool, "hot", hot);
-
-    const raylib_linkage: std.builtin.LinkMode = if (is_release) .static else .dynamic;
-
     const exe = b.addExecutable(.{
         .name = "gol",
         .root_module = b.createModule(.{
@@ -21,46 +12,35 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
-    exe.root_module.addOptions("build_options", build_options);
 
     const core = b.createModule(.{
         .root_source_file = b.path("src/core/root.zig"),
         .optimize = optimize,
         .target = target,
     });
-    // raylib
-    const raylib_dep = b.dependency("raylib_zig", .{
-        .target = target,
-        .optimize = optimize,
-        .linkage = raylib_linkage,
-    });
-    const raylib = raylib_dep.module("raylib");
-    const raygui = raylib_dep.module("raygui");
-    const raylib_artifact = raylib_dep.artifact("raylib");
 
-    core.addImport("raylib", raylib);
-    core.addImport("raygui", raygui);
+    const raylib = b.dependency("raylib_zig", .{ .target = target, .optimize = optimize, .linkage = .static });
+    const raylib_mod = raylib.module("raylib");
+    const raygui_mod = raylib.module("raygui");
+    const raylib_artifact = raylib.artifact("raylib");
 
-    if (hot) {
-        // Both exe and shared lib link the dynamic raylib so they share
-        // raylib's global state (window, GL context) across reloads.
-        exe.root_module.linkLibrary(raylib_artifact);
-        exe.root_module.addImport("raylib", raylib);
-        exe.root_module.addImport("raygui", raygui);
+    const nfd = b.dependency("nfd", .{ .target = target, .optimize = optimize });
+    const nfd_mod = nfd.module("nfd");
 
-        const core_lib = b.addLibrary(.{
-            .name = "core",
-            .root_module = core,
-            .linkage = .dynamic,
-        });
-        core_lib.root_module.linkLibrary(raylib_artifact);
-        b.installArtifact(core_lib);
-    } else {
-        core.linkLibrary(raylib_artifact);
-        exe.root_module.addImport("core", core);
-        exe.root_module.addImport("raylib", raylib);
-        exe.root_module.addImport("raygui", raygui);
-    }
+    const @"known-folders" = b.dependency("known_folders", .{ .target = target, .optimize = optimize });
+    const @"known-folders_mod" = @"known-folders".module("known-folders");
+
+    core.addImport("raylib", raylib_mod);
+    core.addImport("raygui", raygui_mod);
+    core.addImport("nfd", nfd_mod);
+    core.addImport("known-folders", @"known-folders_mod");
+    core.linkLibrary(raylib_artifact);
+
+    exe.root_module.addImport("raylib", raylib_mod);
+    exe.root_module.addImport("raygui", raygui_mod);
+    exe.root_module.addImport("known-folders", @"known-folders_mod");
+    exe.root_module.addImport("core", core);
+    exe.root_module.addImport("nfd", nfd_mod);
 
     b.installArtifact(exe);
 

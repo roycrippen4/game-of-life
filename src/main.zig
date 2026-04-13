@@ -1,48 +1,26 @@
 const std = @import("std");
-const config = @import("build_options");
+
+const core = @import("core");
+const kf = @import("known-folders");
+const nfd = @import("nfd");
 const raylib = @import("raylib");
 
-const hot_reload = config.hot_reload;
-const hr = if (hot_reload) @import("hot_reload.zig") else undefined;
-const core = if (hot_reload) undefined else @import("core");
+pub fn main(init: std.process.Init) !void {
+    const arena = init.arena.allocator();
+    core.patterns.init(init.io, arena, init.environ_map);
 
-var game_update: *const fn (*anyopaque) callconv(.c) void =
-    if (hot_reload) hr.game_update_stub else @ptrCast(&core.game_update);
+    core.ui.init();
+    defer core.ui.exit();
 
-const WindowFn = *const fn () callconv(.c) void;
-
-pub fn main() !void {
-    if (hot_reload) {
-        try hr.init(&game_update);
-    }
-
-    const window_init: WindowFn = if (hot) hr.lookup(WindowFn, "game_window_init") else @ptrCast(&core.game_window_init);
-    const window_deinit: WindowFn = if (hot) hr.lookup(WindowFn, "game_window_deinit") else @ptrCast(&core.game_window_deinit);
-    const state: *anyopaque = if (hot) hr.game_init() else core.game_init();
-
-    window_init();
-    defer window_deinit();
+    var state: core.State = .{};
+    state.game.set_group(core.patterns.default.data);
 
     while (!raylib.windowShouldClose()) {
-        if (hot) hr.try_reload(init.io, &game_update);
-        game_update(state);
+        try core.ui.render(init.io, arena, &state);
     }
-}
-
-test "main foo" {
-    var state: core.State = .{};
-
-    state.game.set_group(core.samples.default);
-    state.game.show();
-    std.debug.print("\n", .{});
-
-    state.game.next_n(107);
-    state.game.show();
 }
 
 test {
-    if (!hot_reload) {
-        _ = @import("core");
-        std.testing.refAllDeclsRecursive(@This());
-    }
+    _ = @import("core");
+    std.testing.refAllDecls(@This());
 }

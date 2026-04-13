@@ -2,9 +2,10 @@
 const std = @import("std");
 
 const SIZE = @import("ui.zig").GRID_SIZE;
-const util = @import("util.zig");
-const RingBuffer = util.RingBuffer;
-const Vector2 = @import("raylib").Vector2;
+const RingBuffer = @import("ring_buffer.zig").RingBuffer;
+const raylib = @import("raylib");
+
+var alive_buf: [SIZE * SIZE]raylib.Vector2 = undefined;
 
 /// Simulation related state
 const Sim = struct {
@@ -31,7 +32,7 @@ const Game = struct {
         return self.current[@intCast(y)][@intCast(x)];
     }
 
-    fn get_live_nbor_count(self: Self, vec: Vector2) usize {
+    fn get_live_nbor_count(self: Self, vec: raylib.Vector2) usize {
         const x: i32 = @intFromFloat(vec.x);
         const y: i32 = @intFromFloat(vec.y);
 
@@ -53,14 +54,19 @@ const Game = struct {
         return count;
     }
 
-    pub fn set(self: *Self, point: Vector2) void {
+    pub fn set(self: *Self, point: raylib.Vector2) void {
         const x: usize = @intFromFloat(point.x);
         const y: usize = @intFromFloat(point.y);
         self.current[y][x] = !self.current[y][x];
     }
 
-    pub fn set_group(self: *Self, points: []const Vector2) void {
+    pub fn set_group(self: *Self, points: []const raylib.Vector2) void {
         for (points) |point| self.set(point);
+    }
+
+    pub fn load(self: *Self, points: []const raylib.Vector2) void {
+        self.current = default;
+        self.set_group(points);
     }
 
     pub fn clear(self: *Self) void {
@@ -104,7 +110,31 @@ const Game = struct {
             std.debug.print("\n", .{});
         }
     }
+
+    pub fn get_all_living(self: Self) []raylib.Vector2 {
+        var index: usize = 0;
+
+        for (0..self.current.len) |y| for (0..self.current[y].len) |x| {
+            if (self.current[y][x]) {
+                alive_buf[index] = .{
+                    .x = @floatFromInt(x),
+                    .y = @floatFromInt(y),
+                };
+                index += 1;
+            }
+        };
+
+        return alive_buf[0..index];
+    }
 };
 
 game: Game = .{},
 sim: Sim = .{},
+
+const patterns = @import("patterns/root.zig");
+
+pub fn init() @This() {
+    var self: @This() = .{};
+    self.game.set_group(patterns.default.data);
+    return self;
+}

@@ -11,8 +11,8 @@ const Rectangle = raylib.Rectangle;
 const Vector2 = raylib.Vector2;
 const Color = raylib.Color;
 
+const rect = @import("rect.zig");
 const colors = @import("colors.zig");
-const util = @import("util.zig");
 
 pub const SIZE = 16;
 pub const DATA_ELEMENTS = SIZE * SIZE / 32; // 8
@@ -38,7 +38,7 @@ const ButtonState = enum {
     /// `disabled` is trivial to check and should be verified before calling this function
     pub fn get(bb: Rectangle) @This() {
         const mouse = raylib.getMousePosition();
-        if (util.rect.contains(bb, mouse)) {
+        if (rect.contains(bb, mouse)) {
             if (raylib.isMouseButtonDown(.left)) {
                 return .down;
             } else {
@@ -147,7 +147,7 @@ pub fn button(icon: Icon, pos: raylib.Vector2, pixel_scale: f32, opts: ButtonOpt
         .height = SIZE * pixel_scale,
     };
 
-    const hovered = util.rect.contains_mouse(bb);
+    const hovered = rect.contains_mouse(bb);
 
     const state: ButtonState = if (opts.disable)
         .disabled
