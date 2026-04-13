@@ -5,23 +5,29 @@ const SIZE = @import("ui.zig").GRID_SIZE;
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const raylib = @import("raylib");
 
-var alive_buf: [SIZE * SIZE]raylib.Vector2 = undefined;
-
 /// Simulation related state
-const Sim = struct {
+pub const Sim = struct {
     const Self = @This();
 
-    frame_speed: u16 = 8,
-    frame_counter: u16 = 0,
+    pub const min_fps: u16 = 3;
+    pub const max_fps: u16 = 16;
+
+    fcount: u16 = 0,
+    fps: u16 = 8,
     running: bool = false,
 };
 
 const GameState = [SIZE][SIZE]bool;
+var alive_buf: [SIZE * SIZE]raylib.Vector2 = undefined;
 
 /// Game of life cell-state
 const Game = struct {
     const Self = @This();
-    const default: GameState = @splat(@splat(false));
+    pub const default: GameState = @splat(@splat(false));
+
+    fn init() Self {
+        return .{ .current = patterns.default.data };
+    }
 
     current: GameState = default,
     temp: GameState = default,
@@ -70,7 +76,8 @@ const Game = struct {
     }
 
     pub fn clear(self: *Self) void {
-        self.current = .default;
+        self.history.push(self.current);
+        self.current = default;
     }
 
     pub fn next(self: *Self) void {

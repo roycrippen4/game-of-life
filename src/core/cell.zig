@@ -2,8 +2,8 @@ const raylib = @import("raylib");
 const Vector2 = raylib.Vector2;
 const Color = raylib.Color;
 const Rectangle = raylib.Rectangle;
-const colors = @import("colors.zig");
 
+const colors = @import("colors.zig");
 const State = @import("State.zig");
 
 pub fn draw(rect: Rectangle, cell_is_alive: bool, cell_is_hovered: bool) void {

@@ -1,8 +1,5 @@
 const std = @import("std");
 
-const kf = @import("known-folders");
-const nfd = @import("nfd");
-const raygui = @import("raygui");
 const raylib = @import("raylib");
 const Vector2 = raylib.Vector2;
 const Rectangle = raylib.Rectangle;
@@ -10,11 +7,13 @@ const Color = raylib.Color;
 
 const cell = @import("cell.zig");
 const colors = @import("colors.zig");
-const core = @import("root.zig");
 const icons = @import("icons.zig");
 const patterns = @import("patterns/root.zig");
 const rect = @import("rect.zig");
 const State = @import("State.zig");
+
+const min_fps: u16 = State.Sim.min_fps;
+const max_fps: u16 = State.Sim.max_fps;
 
 /// Grid is 30x30 cells
 pub const GRID_SIZE: u32 = 30;
@@ -25,7 +24,7 @@ const Sections = struct {
     title: Rectangle = undefined,
     grid: Rectangle = undefined,
     toolbar: Rectangle = undefined,
-    textbox: Rectangle = undefined,
+    sim_controls: Rectangle = undefined,
 
     /// Padding around all sections
     window_pad: usize = 20,
@@ -42,7 +41,7 @@ const sections: Sections = blk: {
     const title_height: usize = 36;
     const grid_height: usize = 600;
     const toolbar_height: usize = 90;
-    const textbox_height: usize = 200;
+    const simbar_height: usize = 45;
 
     const pad = @divExact(s.window_pad, 2);
     const width: usize = s.width - s.window_pad;
@@ -68,24 +67,25 @@ const sections: Sections = blk: {
         .height = toolbar_height,
     };
 
-    s.textbox = .{
+    s.sim_controls = .{
         .x = pad,
         .y = s.toolbar.y + s.toolbar.height + s.section_gap,
         .width = width,
-        .height = textbox_height,
+        .height = simbar_height,
     };
 
     break :blk s;
 };
 
 const TITLE_TEXT: [:0]const u8 = "Conway's Game of Life";
+const TARGET_FPS: u16 = 120;
 
 pub fn init() void {
     const pad = @divExact(sections.window_pad, 2);
     const width = sections.width;
-    const height = sections.textbox.y + sections.textbox.height + pad;
+    const height = sections.sim_controls.y + sections.sim_controls.height + pad;
 
-    raylib.setTargetFPS(120);
+    raylib.setTargetFPS(TARGET_FPS);
     raylib.initWindow(width, height, TITLE_TEXT);
 }
 
@@ -117,6 +117,13 @@ fn render_grid(state: *State, rectangle: Rectangle) void {
     }
 }
 
+inline fn next_button_x(rect_x: f32, button_width: f32, gap: f32, render_count: *f32) f32 {
+    render_count.* += 1;
+    const gap_width: f32 = render_count.* * gap;
+    const button_width_sum: f32 = ((render_count.* - 1) * button_width);
+    return rect_x + gap_width + button_width_sum;
+}
+
 pub fn render_toolbar(
     io: std.Io,
     arena: std.mem.Allocator,
@@ -128,45 +135,46 @@ pub fn render_toolbar(
     // The icons are pixel art rendered using a bunch of rectangles.
     // This value scales the size of a "pixel" in the icon,
     // which is really just the size of the rect
-    const pixel_scale = 5;
+    const pixel_scale = 4;
 
     // gap between each button
-    const button_gap: f32 = 5;
-    const button_width: f32 = icons.SIZE * pixel_scale;
-    const button_y: f32 = rectangle.y + (rectangle.height / 2) - (button_width) / 2;
+    const b_gap: f32 = 5;
+    const b_width: f32 = icons.SIZE * pixel_scale;
+    const b_y: f32 = rectangle.y + (rectangle.height / 2) - (b_width) / 2;
 
-    var buttons_rendered: f32 = 0;
-    const next_button_x = struct {
-        inline fn next_button_x(rect_x: f32, gap: f32, render_count: *f32) f32 {
-            render_count.* += 1;
-            const gap_width: f32 = render_count.* * gap;
-            const button_width_sum: f32 = ((render_count.* - 1) * button_width);
-            return rect_x + gap_width + button_width_sum;
-        }
-    }.next_button_x;
-
-    // Next state
-    {
-        const button_x: f32 = next_button_x(rectangle.x, button_gap, &buttons_rendered);
-        const button_pos: Vector2 = .{ .x = button_x, .y = button_y };
-        const click_occurred = icons.button(icons.prev_frame, button_pos, pixel_scale, .{});
-        if (click_occurred) state.game.prev();
-    }
+    var rendered: f32 = 0;
 
     // Previous state
     {
-        const button_x: f32 = next_button_x(rectangle.x, button_gap, &buttons_rendered);
-        const pos: Vector2 = .{ .x = button_x, .y = button_y };
-        const click_occurred = icons.button(icons.next_frame, pos, pixel_scale, .{});
-        if (click_occurred) state.game.next();
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const b_pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.prev_frame, b_pos, pixel_scale, .{
+            .tooltip = "Step Back",
+            .disable = state.sim.running,
+        });
+        if (click) state.game.prev();
+    }
+
+    // next state
+    {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.next_frame, pos, pixel_scale, .{
+            .tooltip = "Step Forward",
+            .disable = state.sim.running,
+        });
+        if (click) state.game.next();
     }
 
     // Load File
     {
-        const button_x: f32 = next_button_x(rectangle.x, button_gap, &buttons_rendered);
-        const pos: Vector2 = .{ .x = button_x, .y = button_y };
-        const click_occurred = icons.button(icons.file_open, pos, pixel_scale, .{});
-        if (click_occurred) if (patterns.load_from_disk(io, arena)) |pattern| {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.file_open, pos, pixel_scale, .{
+            .tooltip = "Load Board",
+            .disable = state.sim.running,
+        });
+        if (click) if (patterns.load_from_disk(io, arena)) |pattern| {
             state.game.load(pattern.data);
             std.zon.parse.free(arena, pattern);
         };
@@ -174,24 +182,99 @@ pub fn render_toolbar(
 
     // save file
     {
-        const button_x: f32 = next_button_x(rectangle.x, button_gap, &buttons_rendered);
-        const pos: Vector2 = .{ .x = button_x, .y = button_y };
-        const click_occurred = icons.button(icons.file_save, pos, pixel_scale, .{});
-        if (click_occurred) {
-            const pattern: []const raylib.Vector2 = state.game.get_all_living();
-            try patterns.save_to_disk(io, pattern);
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.file_save, pos, pixel_scale, .{
+            .tooltip = "Save Board",
+            .disable = state.sim.running,
+        });
+        if (click) try patterns.save_to_disk(io, state.game.get_all_living());
+    }
 
-            // if (nfd.openFileDialog("zon", "") catch unreachable) |path| {
-            //     std.debug.print("path = {s}\n", .{path});
-            // } else {
-            //     std.debug.print("User pressed cancel", .{});
-            // }
+    // clear state
+    {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.trash, pos, pixel_scale, .{
+            .tooltip = "Clear Board",
+            .disable = state.sim.running,
+        });
+        if (click) state.game.clear();
+    }
+
+    // start sim
+    {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.play, pos, pixel_scale, .{
+            .tooltip = "Play",
+            .disable = state.sim.running,
+        });
+        if (click) state.sim.running = true;
+    }
+
+    // pause sim
+    {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.pause, pos, pixel_scale, .{
+            .tooltip = "Pause",
+            .disable = !state.sim.running,
+        });
+        if (click) {
+            state.sim.running = false;
+            state.sim.fcount = 0;
         }
     }
 }
 
-pub fn render_textbox(_: *State, rectangle: Rectangle) void {
+pub fn render_sim_controls(io: std.Io, state: *State, rectangle: Rectangle) void {
+    const scale = 2;
+
+    // gap between each button
+    const b_gap: f32 = 5;
+    const b_width: f32 = icons.SIZE * scale;
+    const b_y: f32 = rectangle.y + (rectangle.height / 2) - (b_width) / 2;
+
+    var rendered: f32 = 0;
     raylib.drawRectangleRec(rectangle, .dark_gray);
+
+    // slow down
+    {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const b_pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.minus, b_pos, scale, .{ .tooltip = "Slower" });
+        if (click) {
+            state.sim.fps = if (state.sim.fps < min_fps)
+                min_fps
+            else
+                state.sim.fps - 1;
+        }
+    }
+
+    // speed up
+    {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const b_pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.button(io, icons.plus, b_pos, scale, .{ .tooltip = "Faster" });
+        if (click) {
+            state.sim.fps = if (state.sim.fps > max_fps)
+                max_fps
+            else
+                state.sim.fps + 1;
+        }
+    }
+
+    // raylib.drawText("Frame Speed: ", 165, 210, 10, raylib.Color.dark_gray);
+    // raylib.drawText(raylib.textFormat("%02i FPS", .{gs.frame_speed}), 575, 210, 10, raylib.Color.dark_gray);
+    //
+    // var i: i32 = 0;
+    // while (i < MAX_FRAME_SPEED) : (i += 1) {
+    //     if (i < gs.frame_speed) {
+    //         raylib.drawRectangle(250 + 21 * i, 205, 20, 20, raylib.Color.red);
+    //     }
+    //     raylib.drawRectangleLines(250 + 21 * i, 205, 20, 20, raylib.Color.maroon);
+    // }
 }
 
 pub fn render(io: std.Io, arena: std.mem.Allocator, state: *State) !void {
@@ -202,7 +285,15 @@ pub fn render(io: std.Io, arena: std.mem.Allocator, state: *State) !void {
     rect.draw_text(TITLE_TEXT, sections.title, .white);
     render_grid(state, sections.grid);
     try render_toolbar(io, arena, state, sections.toolbar);
-    render_textbox(state, sections.textbox);
+    render_sim_controls(io, state, sections.sim_controls);
+
+    if (state.sim.running) {
+        state.sim.fcount += 1;
+        if (state.sim.fcount >= @divFloor(TARGET_FPS, state.sim.fps)) {
+            state.game.next();
+            state.sim.fcount = 0;
+        }
+    }
 }
 
 pub fn should_exit() bool {
