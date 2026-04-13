@@ -53,6 +53,9 @@ fn set_datapath(io: Io, arena: Allocator, env: *Environ.Map) void {
 fn write_included(io: Io) void {
     const dir = get_datadir(io);
 
+    var buffer: [1024]u8 = undefined;
+    var writer: std.Io.Writer = .fixed(&buffer);
+
     for (all) |sample| {
         std.zon.stringify.serialize(sample, .{}, &writer) catch {
             std.log.err("Failed to deserialize sample\nSample raw:\n{any}", .{sample});
@@ -86,9 +89,6 @@ const dialog_filters: []const filedialog.FilterItem = &.{.{
     .spec = "zon",
 }};
 
-var serde_buffer: [1024]u8 = undefined;
-var writer: std.Io.Writer = .fixed(&serde_buffer);
-
 var pattern_buffer: [1024]raylib.Vector2 = undefined;
 pub fn load_from_disk(io: Io, arena: Allocator) ?Pattern {
     const Options = filedialog.OpenDialogOptions;
@@ -121,6 +121,9 @@ pub fn save_to_disk(io: Io, cells: []const raylib.Vector2) !void {
     const filepath: [:0]const u8 = path.slice();
     const filename = Dir.path.basename(filepath);
     const pattern: Pattern = .{ .name = filename, .data = cells };
+
+    var buffer: [1024]u8 = undefined;
+    var writer: std.Io.Writer = .fixed(&buffer);
 
     try std.zon.stringify.serialize(pattern, .{}, &writer);
 
