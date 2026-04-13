@@ -13,8 +13,8 @@
             .hash = "known_folders-0.0.0-Fy-PJk7KAAC41mQXzmFyGa0Q7tvmQjatENkREa6Gc4zu",
         },
         .filedialog = .{
-            .url = "https://github.com/roycrippen4/filedialog/archive/refs/tags/v0.0.1.tar.gz",
-            .hash = "filedialog-0.0.1-MtFR1yNvAwA-plo7CNrriq-bB3kVqXOBFv1yIK_KbRWU",
+            .url = "https://github.com/roycrippen4/filedialog/archive/refs/tags/v0.0.2.tar.gz",
+            .hash = "filedialog-0.0.1-MtFR1y1vAwDvNQxK5wV0P51u_4RdDVN4HQq6txM2p53g",
         },
     },
     .paths = .{
