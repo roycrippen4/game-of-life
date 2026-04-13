@@ -24,23 +24,20 @@ pub fn build(b: *std.Build) void {
     const raygui_mod = raylib.module("raygui");
     const raylib_artifact = raylib.artifact("raylib");
 
-    const nfd = b.dependency("nfd", .{ .target = target, .optimize = optimize });
-    const nfd_mod = nfd.module("nfd");
-
+    const filedialog = b.dependency("filedialog", .{ .target = target, .optimize = optimize });
+    const filedialog_mod = filedialog.module("filedialog");
     const @"known-folders" = b.dependency("known_folders", .{ .target = target, .optimize = optimize });
     const @"known-folders_mod" = @"known-folders".module("known-folders");
 
-    core.addImport("raylib", raylib_mod);
-    core.addImport("raygui", raygui_mod);
-    core.addImport("nfd", nfd_mod);
+    core.addImport("filedialog", filedialog_mod);
     core.addImport("known-folders", @"known-folders_mod");
+    core.addImport("raygui", raygui_mod);
+    core.addImport("raylib", raylib_mod);
     core.linkLibrary(raylib_artifact);
 
-    exe.root_module.addImport("raylib", raylib_mod);
-    exe.root_module.addImport("raygui", raygui_mod);
-    exe.root_module.addImport("known-folders", @"known-folders_mod");
     exe.root_module.addImport("core", core);
-    exe.root_module.addImport("nfd", nfd_mod);
+    exe.root_module.addImport("raygui", raygui_mod);
+    exe.root_module.addImport("raylib", raylib_mod);
 
     b.installArtifact(exe);
 

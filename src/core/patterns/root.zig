@@ -6,8 +6,9 @@ const Environ = std.process.Environ;
 
 pub const default: Pattern = @import("default.zon");
 pub const glider: Pattern = @import("glider.zon");
+
+const filedialog = @import("filedialog");
 const kf = @import("known-folders");
-const nfd = @import("nfd");
 const raylib = @import("raylib");
 
 pub const Pattern = struct {
@@ -24,8 +25,6 @@ pub const all = &[_]Pattern{
 var datapath: ?[]const u8 = null;
 /// null-terminated variant of the same path
 var datapathZ: ?[:0]const u8 = null;
-
-var serde_buffer: [1024]u8 = undefined;
 
 /// Sets the global `gol_dir_path`
 ///
@@ -54,9 +53,6 @@ fn set_datapath(io: Io, arena: Allocator, env: *Environ.Map) void {
 fn write_included(io: Io) void {
     const dir = get_datadir(io);
 
-    var buffer: [1024]u8 = undefined;
-    var writer: std.Io.Writer = .fixed(&buffer);
-
     for (all) |sample| {
         std.zon.stringify.serialize(sample, .{}, &writer) catch {
             std.log.err("Failed to deserialize sample\nSample raw:\n{any}", .{sample});
@@ -79,45 +75,53 @@ fn get_datadir(io: Io) Dir {
 }
 
 pub fn init(io: Io, arena: Allocator, environ_map: *Environ.Map) void {
+    filedialog.init() catch unreachable;
     std.debug.assert(datapath == null);
     set_datapath(io, arena, environ_map);
     write_included(io);
 }
 
+const dialog_filters: []const filedialog.FilterItem = &.{.{
+    .name = "Patterns",
+    .spec = "zon",
+}};
+
+var serde_buffer: [1024]u8 = undefined;
+var writer: std.Io.Writer = .fixed(&serde_buffer);
+
 var pattern_buffer: [1024]raylib.Vector2 = undefined;
 pub fn load_from_disk(io: Io, arena: Allocator) ?Pattern {
-    const filepath = nfd.openFileDialog(null, datapathZ) catch {
-        return null;
-    } orelse return null;
-    defer nfd.freePath(filepath);
+    const Options = filedialog.OpenDialogOptions;
+    const Path = filedialog.Path;
 
-    const contents: [:0]const u8 = Dir.readFileAllocOptions(
-        .cwd(),
-        io,
-        filepath,
-        arena,
-        .unlimited,
-        .@"8",
-        0,
-    ) catch return null;
+    const open_opts: Options = .{
+        .default_path = datapathZ,
+        .filter_list = dialog_filters,
+    };
+    const path: Path = (filedialog.open(open_opts) catch null) orelse return null;
+    defer path.deinit();
 
-    return std.zon.parse.fromSliceAlloc(
-        Pattern,
-        arena,
-        contents,
-        null,
-        .{},
-    ) catch null;
+    const filepath: [:0]const u8 = path.slice();
+    const contents: [:0]const u8 = Dir.readFileAllocOptions(.cwd(), io, filepath, arena, .unlimited, .@"8", 0) catch return null;
+    return std.zon.parse.fromSliceAlloc(Pattern, arena, contents, null, .{}) catch null;
 }
 
 pub fn save_to_disk(io: Io, cells: []const raylib.Vector2) !void {
-    const filepath: [:0]const u8 = nfd.saveFileDialog(null, datapathZ) catch return orelse return;
-    defer nfd.freePath(filepath);
+    const Options = filedialog.SaveDialogOptions;
+    const Path = filedialog.Path;
 
+    const opts: Options = .{
+        .default_path = datapathZ,
+        .default_name = "new-pattern.zon",
+        .filter_list = dialog_filters,
+    };
+    const path: Path = try filedialog.save(opts) orelse return;
+    defer path.deinit();
+
+    const filepath: [:0]const u8 = path.slice();
     const filename = Dir.path.basename(filepath);
     const pattern: Pattern = .{ .name = filename, .data = cells };
 
-    var writer: std.Io.Writer = .fixed(&serde_buffer);
     try std.zon.stringify.serialize(pattern, .{}, &writer);
 
     try get_datadir(io).writeFile(io, .{
@@ -125,14 +129,3 @@ pub fn save_to_disk(io: Io, cells: []const raylib.Vector2) !void {
         .sub_path = filename,
     });
 }
-
-// pub fn load_sample_exe(
-//     io: std.Io,
-//     arena: std.mem.Allocator,
-//     env: *std.process.Environ.Map,
-// ) ![]const raylib.Vector2 {
-//     // nfd.openFileDialog()
-//     // const picked_sample:
-// }
-
-// pub fn new_sample(arena: std.mem.Allocator, samples: std.ArrayList(core.Sample), )
