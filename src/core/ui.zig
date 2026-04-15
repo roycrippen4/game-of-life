@@ -11,9 +11,7 @@ const icons = @import("icons.zig");
 const patterns = @import("patterns/root.zig");
 const rect = @import("rect.zig");
 const State = @import("State.zig");
-
-const min_fps: u16 = State.Sim.min_fps;
-const max_fps: u16 = State.Sim.max_fps;
+const Sim = State.Sim;
 
 /// Grid is 30x30 cells
 pub const GRID_SIZE: u32 = 30;
@@ -223,51 +221,64 @@ pub fn render_toolbar(
         });
         if (click) {
             state.sim.running = false;
-            state.sim.fcount = 0;
+            state.sim.framecount = 0;
         }
     }
 }
 
-pub fn render_sim_controls(io: std.Io, state: *State, rectangle: Rectangle) void {
-    const scale = 2;
+pub fn render_sim_controls(io: std.Io, state: *State, r: Rectangle) void {
+    raylib.drawRectangleRec(r, .dark_gray);
 
-    // gap between each button
-    const b_gap: f32 = 5;
-    const b_width: f32 = icons.SIZE * scale;
-    const b_y: f32 = rectangle.y + (rectangle.height / 2) - (b_width) / 2;
+    const scale = 2;
+    const gap: f32 = 5;
+    const width: f32 = icons.SIZE * scale;
+    const y: f32 = r.y + (r.height / 2) - (width) / 2;
 
     var rendered: f32 = 0;
-    raylib.drawRectangleRec(rectangle, .dark_gray);
+
+    const slow_x: f32 = next_button_x(r.x, width, gap, &rendered);
+    const fast_x: f32 = r.x + r.width - width - gap;
 
     // slow down
     {
-        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
-        const b_pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.minus, b_pos, scale, .{ .tooltip = "Slower" });
-        if (click) {
-            state.sim.fps = if (state.sim.fps < min_fps)
-                min_fps
-            else
-                state.sim.fps - 1;
-        }
+        const click = icons.button(io, icons.minus, .{ .x = slow_x, .y = y }, scale, .{ .tooltip = "Slower" });
+        if (click) state.sim.slow_down();
     }
 
     // speed up
     {
-        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
-        const b_pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.plus, b_pos, scale, .{ .tooltip = "Faster" });
-        if (click) {
-            state.sim.fps = if (state.sim.fps > max_fps)
-                max_fps
-            else
-                state.sim.fps + 1;
+        const click = icons.button(io, icons.plus, .{ .x = fast_x, .y = y }, scale, .{ .tooltip = "Faster" });
+        if (click) state.sim.speed_up();
+    }
+
+    {
+        const x: f32 = slow_x + width + gap;
+        const total_width = fast_x - gap - x;
+
+        const segments: f32 = @floatFromInt(Sim.max_fps - Sim.min_fps);
+        const segment_width: f32 = total_width / segments;
+
+        var i: u16 = 0;
+        while (i < segments) : (i += 1) {
+            const segment_rect: Rectangle = .{
+                .width = segment_width,
+                .height = width,
+                .x = x + (segment_width * i),
+                .y = y,
+            };
+
+            if (i < state.sim.fps) {
+                raylib.drawRectangleRec(segment_rect, .gray);
+            }
+            raylib.drawRectangleLinesEx(segment_rect, 1, .black);
+
+            const click_or_drag = rect.contains_mouse(segment_rect) and (raylib.isMouseButtonPressed(.left) or raylib.isMouseButtonDown(.left));
+            if (click_or_drag) {
+                state.sim.fps = i + 1;
+            }
         }
     }
 
-    // raylib.drawText("Frame Speed: ", 165, 210, 10, raylib.Color.dark_gray);
-    // raylib.drawText(raylib.textFormat("%02i FPS", .{gs.frame_speed}), 575, 210, 10, raylib.Color.dark_gray);
-    //
     // var i: i32 = 0;
     // while (i < MAX_FRAME_SPEED) : (i += 1) {
     //     if (i < gs.frame_speed) {
@@ -288,10 +299,10 @@ pub fn render(io: std.Io, arena: std.mem.Allocator, state: *State) !void {
     render_sim_controls(io, state, sections.sim_controls);
 
     if (state.sim.running) {
-        state.sim.fcount += 1;
-        if (state.sim.fcount >= @divFloor(TARGET_FPS, state.sim.fps)) {
+        state.sim.framecount += 1;
+        if (state.sim.framecount >= @divFloor(TARGET_FPS, state.sim.fps)) {
             state.game.next();
-            state.sim.fcount = 0;
+            state.sim.framecount = 0;
         }
     }
 }

@@ -9,10 +9,18 @@ const raylib = @import("raylib");
 pub const Sim = struct {
     const Self = @This();
 
-    pub const min_fps: u16 = 3;
-    pub const max_fps: u16 = 16;
+    pub const min_fps: u16 = 1;
+    pub const max_fps: u16 = 64;
 
-    fcount: u16 = 0,
+    pub fn speed_up(self: *Self) void {
+        self.fps = if (self.fps >= max_fps) max_fps else self.fps + 1;
+    }
+
+    pub fn slow_down(self: *Self) void {
+        self.fps = if (self.fps <= min_fps) min_fps else self.fps - 1;
+    }
+
+    framecount: u16 = 0,
     fps: u16 = 8,
     running: bool = false,
 };
