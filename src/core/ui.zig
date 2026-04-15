@@ -13,6 +13,9 @@ const rect = @import("rect.zig");
 const State = @import("State.zig");
 const Sim = State.Sim;
 
+const mouseDown = raylib.isMouseButtonDown;
+const mousePressed = raylib.isMouseButtonPressed;
+
 /// Grid is 30x30 cells
 pub const GRID_SIZE: u32 = 30;
 
@@ -38,7 +41,7 @@ const sections: Sections = blk: {
 
     const title_height: usize = 36;
     const grid_height: usize = 600;
-    const toolbar_height: usize = 90;
+    const toolbar_height: usize = 76;
     const simbar_height: usize = 45;
 
     const pad = @divExact(s.window_pad, 2);
@@ -94,6 +97,8 @@ fn render_grid(state: *State, rectangle: Rectangle) void {
     const cell_width = rectangle.width / GRID_SIZE;
     const cell_height = rectangle.height / GRID_SIZE;
 
+    if (state.sim.running or !mouseDown(.left)) state.game.end_stroke();
+
     for (0..GRID_SIZE) |row| {
         const row_f: f32 = @floatFromInt(row);
         for (0..GRID_SIZE) |col| {
@@ -109,8 +114,8 @@ fn render_grid(state: *State, rectangle: Rectangle) void {
             };
             const cell_is_alive = state.game.current[row][col];
             const cell_is_hovered = rect.contains_mouse(cell_rect);
-            cell.draw(cell_rect, cell_is_alive, cell_is_hovered);
-            cell.handle_toggle(state, row, col, cell_is_hovered);
+            cell.draw(cell_rect, cell_is_alive, cell_is_hovered, state.sim.running);
+            if (cell_is_hovered and !state.sim.running) state.game.handle_paint(row, col);
         }
     }
 }
@@ -146,18 +151,43 @@ pub fn render_toolbar(
     {
         const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
         const b_pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.prev_frame, b_pos, pixel_scale, .{
+        const click = icons.btn(io, icons.prev_frame, b_pos, pixel_scale, .{
             .tooltip = "Step Back",
             .disable = state.sim.running,
         });
         if (click) state.game.prev();
     }
 
+    // pause sim
+    {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.btn(io, icons.pause, pos, pixel_scale, .{
+            .tooltip = "Pause",
+            .disable = !state.sim.running,
+        });
+        if (click) {
+            state.sim.running = false;
+            state.sim.framecount = 0;
+        }
+    }
+
+    // start sim
+    {
+        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
+        const pos: Vector2 = .{ .x = b_x, .y = b_y };
+        const click = icons.btn(io, icons.play, pos, pixel_scale, .{
+            .tooltip = "Play",
+            .disable = state.sim.running,
+        });
+        if (click) state.sim.running = true;
+    }
+
     // next state
     {
         const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
         const pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.next_frame, pos, pixel_scale, .{
+        const click = icons.btn(io, icons.next_frame, pos, pixel_scale, .{
             .tooltip = "Step Forward",
             .disable = state.sim.running,
         });
@@ -168,7 +198,7 @@ pub fn render_toolbar(
     {
         const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
         const pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.file_open, pos, pixel_scale, .{
+        const click = icons.btn(io, icons.file_open, pos, pixel_scale, .{
             .tooltip = "Load Board",
             .disable = state.sim.running,
         });
@@ -182,47 +212,22 @@ pub fn render_toolbar(
     {
         const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
         const pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.file_save, pos, pixel_scale, .{
+        const click = icons.btn(io, icons.file_save, pos, pixel_scale, .{
             .tooltip = "Save Board",
             .disable = state.sim.running,
         });
-        if (click) try patterns.save_to_disk(io, state.game.get_all_living());
+        if (click) try patterns.save_to_disk(io, arena, state.game.get_all_living());
     }
 
     // clear state
     {
         const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
         const pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.trash, pos, pixel_scale, .{
+        const click = icons.btn(io, icons.trash, pos, pixel_scale, .{
             .tooltip = "Clear Board",
             .disable = state.sim.running,
         });
         if (click) state.game.clear();
-    }
-
-    // start sim
-    {
-        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
-        const pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.play, pos, pixel_scale, .{
-            .tooltip = "Play",
-            .disable = state.sim.running,
-        });
-        if (click) state.sim.running = true;
-    }
-
-    // pause sim
-    {
-        const b_x: f32 = next_button_x(rectangle.x, b_width, b_gap, &rendered);
-        const pos: Vector2 = .{ .x = b_x, .y = b_y };
-        const click = icons.button(io, icons.pause, pos, pixel_scale, .{
-            .tooltip = "Pause",
-            .disable = !state.sim.running,
-        });
-        if (click) {
-            state.sim.running = false;
-            state.sim.framecount = 0;
-        }
     }
 }
 
@@ -241,13 +246,13 @@ pub fn render_sim_controls(io: std.Io, state: *State, r: Rectangle) void {
 
     // slow down
     {
-        const click = icons.button(io, icons.minus, .{ .x = slow_x, .y = y }, scale, .{ .tooltip = "Slower" });
+        const click = icons.btn(io, icons.minus, .{ .x = slow_x, .y = y }, scale, .{ .tooltip = "Slower" });
         if (click) state.sim.slow_down();
     }
 
     // speed up
     {
-        const click = icons.button(io, icons.plus, .{ .x = fast_x, .y = y }, scale, .{ .tooltip = "Faster" });
+        const click = icons.btn(io, icons.plus, .{ .x = fast_x, .y = y }, scale, .{ .tooltip = "Faster" });
         if (click) state.sim.speed_up();
     }
 
@@ -272,20 +277,11 @@ pub fn render_sim_controls(io: std.Io, state: *State, r: Rectangle) void {
             }
             raylib.drawRectangleLinesEx(segment_rect, 1, .black);
 
-            const click_or_drag = rect.contains_mouse(segment_rect) and (raylib.isMouseButtonPressed(.left) or raylib.isMouseButtonDown(.left));
-            if (click_or_drag) {
+            if (rect.contains_mouse(segment_rect) and (mousePressed(.left) or mouseDown(.left))) {
                 state.sim.fps = i + 1;
             }
         }
     }
-
-    // var i: i32 = 0;
-    // while (i < MAX_FRAME_SPEED) : (i += 1) {
-    //     if (i < gs.frame_speed) {
-    //         raylib.drawRectangle(250 + 21 * i, 205, 20, 20, raylib.Color.red);
-    //     }
-    //     raylib.drawRectangleLines(250 + 21 * i, 205, 20, 20, raylib.Color.maroon);
-    // }
 }
 
 pub fn render(io: std.Io, arena: std.mem.Allocator, state: *State) !void {
@@ -312,4 +308,8 @@ pub fn should_exit() bool {
 }
 pub fn exit() void {
     raylib.closeWindow();
+}
+
+test {
+    _ = cell;
 }

@@ -28,6 +28,8 @@ pub const plus: Icon = .{ 0x00000000, 0x01800000, 0x01800180, 0x1ff80180, 0x0180
 pub const file_save: Icon = .{ 0x3ffe0000, 0x44226422, 0x400247e2, 0x5ffa4002, 0x57ea500a, 0x500a500a, 0x40025ffa, 0x00007ffe };
 pub const file_open: Icon = .{ 0x3ff00000, 0x201c2010, 0x20042004, 0x21042004, 0x24442284, 0x21042104, 0x20042104, 0x00003ffc };
 pub const trash: Icon = .{ 0x00000000, 0x08080ff8, 0x08081ffc, 0x0aa80aa8, 0x0aa80aa8, 0x0aa80aa8, 0x08080aa8, 0x00000ff8 };
+pub const question_mark: Icon = .{ 0x00000000, 0x08080ff8, 0x08081ffc, 0x0aa80aa8, 0x0aa80aa8, 0x0aa80aa8, 0x08080aa8, 0x00000ff8 };
+pub const random: Icon = .{ 0xc010ffe0, 0x9184a188, 0xa7fe8802, 0x859aa402, 0x9462859a, 0x459ad462, 0x1402259a, 0x00000ffe };
 
 const ButtonState = enum {
     default,
@@ -189,7 +191,7 @@ pub fn draw(
 }
 
 /// Renders an icon as a button. Returns true if clicked.
-pub fn button(
+pub fn btn(
     io: std.Io,
     icon: Icon,
     pos: raylib.Vector2,

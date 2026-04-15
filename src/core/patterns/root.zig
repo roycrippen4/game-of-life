@@ -1,8 +1,9 @@
 const std = @import("std");
-const Io = std.Io;
-const Dir = Io.Dir;
 const Allocator = std.mem.Allocator;
+const Dir = Io.Dir;
 const Environ = std.process.Environ;
+const Io = std.Io;
+const Writer = Io.Writer;
 
 pub const default: Pattern = @import("default.zon");
 pub const glider: Pattern = @import("glider.zon");
@@ -21,9 +22,7 @@ pub const all = &[_]Pattern{
     glider,
 };
 
-/// global path to my data directory
 var datapath: ?[]const u8 = null;
-/// null-terminated variant of the same path
 var datapathZ: ?[:0]const u8 = null;
 
 /// Sets the global `gol_dir_path`
@@ -106,7 +105,7 @@ pub fn load_from_disk(io: Io, arena: Allocator) ?Pattern {
     return std.zon.parse.fromSliceAlloc(Pattern, arena, contents, null, .{}) catch null;
 }
 
-pub fn save_to_disk(io: Io, cells: []const raylib.Vector2) !void {
+pub fn save_to_disk(io: Io, arena: Allocator, cells: []const raylib.Vector2) !void {
     const Options = filedialog.SaveDialogOptions;
     const Path = filedialog.Path;
 
@@ -122,10 +121,11 @@ pub fn save_to_disk(io: Io, cells: []const raylib.Vector2) !void {
     const filename = Dir.path.basename(filepath);
     const pattern: Pattern = .{ .name = filename, .data = cells };
 
-    var buffer: [1024]u8 = undefined;
-    var writer: std.Io.Writer = .fixed(&buffer);
+    var aw: std.Io.Writer.Allocating = .init(arena);
+    defer aw.deinit();
+    const writer = &aw.writer;
 
-    try std.zon.stringify.serialize(pattern, .{}, &writer);
+    try std.zon.stringify.serialize(pattern, .{}, writer);
 
     try get_datadir(io).writeFile(io, .{
         .data = writer.buffered(),

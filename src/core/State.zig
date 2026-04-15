@@ -28,6 +28,19 @@ pub const Sim = struct {
 const GameState = [SIZE][SIZE]bool;
 var alive_buf: [SIZE * SIZE]raylib.Vector2 = undefined;
 
+/// Click-and-drag paint stroke state
+pub const Paint = struct {
+    /// Sentinel = no cell touched yet this stroke
+    pub const no_cell: usize = std.math.maxInt(usize);
+
+    last_row: usize = no_cell,
+    last_col: usize = no_cell,
+    /// Value to write into every cell touched by the current stroke
+    value: bool = false,
+    /// True while the left mouse button is held and a stroke is in progress
+    active: bool = false,
+};
+
 /// Game of life cell-state
 const Game = struct {
     const Self = @This();
@@ -40,6 +53,7 @@ const Game = struct {
     current: GameState = default,
     temp: GameState = default,
     history: RingBuffer(GameState, 100) = .{},
+    paint: Paint = .{},
 
     fn is_alive(self: Self, x: i32, y: i32) bool {
         if (x < 0 or y < 0 or x >= SIZE or y >= SIZE) return false;
@@ -123,6 +137,55 @@ const Game = struct {
                 std.debug.print("{c}", .{char});
             }
             std.debug.print("\n", .{});
+        }
+    }
+
+    pub fn end_stroke(self: *Self) void {
+        self.paint.active = false;
+        self.paint.last_row = Paint.no_cell;
+        self.paint.last_col = Paint.no_cell;
+    }
+
+    pub fn handle_paint(self: *Self, row: usize, col: usize) void {
+        if (raylib.isMouseButtonPressed(.left)) {
+            self.paint.value = !self.current[row][col];
+            self.current[row][col] = self.paint.value;
+            self.paint.last_row = row;
+            self.paint.last_col = col;
+            self.paint.active = true;
+            return;
+        }
+
+        if (!self.paint.active or !raylib.isMouseButtonDown(.left)) return;
+        if (row == self.paint.last_row and col == self.paint.last_col) return;
+
+        self.paint_line(self.paint.last_row, self.paint.last_col, row, col);
+        self.paint.last_row = row;
+        self.paint.last_col = col;
+    }
+
+    fn paint_line(self: *Self, r0: usize, c0: usize, r1: usize, c1: usize) void {
+        var x0: i32 = @intCast(c0);
+        var y0: i32 = @intCast(r0);
+        const x1: i32 = @intCast(c1);
+        const y1: i32 = @intCast(r1);
+        const dx: i32 = @intCast(@abs(x1 - x0));
+        const dy: i32 = -@as(i32, @intCast(@abs(y1 - y0)));
+        const sx: i32 = if (x0 < x1) 1 else -1;
+        const sy: i32 = if (y0 < y1) 1 else -1;
+        var err: i32 = dx + dy;
+        while (true) {
+            self.current[@intCast(y0)][@intCast(x0)] = self.paint.value;
+            if (x0 == x1 and y0 == y1) break;
+            const e2 = 2 * err;
+            if (e2 >= dy) {
+                err += dy;
+                x0 += sx;
+            }
+            if (e2 <= dx) {
+                err += dx;
+                y0 += sy;
+            }
         }
     }
 
